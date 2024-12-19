@@ -4,7 +4,7 @@
 This project aims to analyze user engagement in telecom applications by leveraging data analytics techniques. The analysis focuses on user behavior, engagement metrics, and insights that can help improve Quality of Service (QoS) and user experience.
 
 ## Project Structure
-
+```
 ├── .vscode/                  # Visual Studio Code settings
 ├── .github/                  # GitHub workflows for CI/CD
 │   └── workflows
@@ -22,7 +22,7 @@ This project aims to analyze user engagement in telecom applications by leveragi
 └── scripts/                  # Scripts for data processing and analysis
 ├── init.py
 └── README.md             # Instructions for using scripts
-
+```
 ## Installation
 To set up the project, clone the repository and install the required packages:
 
@@ -47,22 +47,4 @@ License
 
 This project is licensed under the MIT License.
 
-### Notebooks README.md
 
-```markdown
-# Notebooks Directory
-
-## Overview
-This directory contains Jupyter notebooks used for exploratory data analysis (EDA) and visualization of user engagement metrics in telecom applications.
-
-## Usage
-1. **Open Notebooks**: Use Jupyter Notebook or JupyterLab to open the notebooks in this directory.
-2. **Run Cells**: Execute the cells in the notebooks to perform data analysis and visualize results.
-3. **Modify as Needed**: Feel free to modify the code to explore different aspects of the data.
-
-## Notebooks Included
-- `User_Engagement_Analysis.ipynb`: Analyzes user engagement metrics such as session frequency, duration, and total traffic.
-- `Data_Visualization.ipynb`: Visualizes key findings from the user engagement analysis.
-
-## Requirements
-Ensure you have the necessary libraries installed as specified
