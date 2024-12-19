@@ -30,7 +30,7 @@ To set up the project, clone the repository and install the required packages:
 git clone <repository-url>
 cd <repository-directory>
 pip install -r requirements.txt
-
+```
 Usage
 
 1. Data Preparation: Use the scripts in the scripts/ directory to clean and prepare the data.
