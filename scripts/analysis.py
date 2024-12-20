@@ -95,3 +95,56 @@ def top_5_handsets_per_top_3_manufacturers(data, manufacturer_column='Handset Ma
     plt.show()
     
     return top_5_handsets
+
+
+def aggregate_user_behavior(df):
+    # Convert 'Start' and 'End' columns to datetime (if they are not already in datetime format)
+    df['Start'] = pd.to_datetime(df['Start'])
+    df['End'] = pd.to_datetime(df['End'])
+
+    # Calculate the session duration in seconds (assuming 'Dur. (ms)' is in milliseconds)
+    df['Duration (s)'] = df['Dur. (ms)'] / 1000
+
+    # Group by user (e.g., IMSI or MSISDN)
+    grouped = df.groupby('IMSI').agg(
+        # Number of sessions per user
+        num_sessions=('IMSI', 'count'),
+        
+        # Total session duration per user (in seconds)
+        total_duration=('Duration (s)', 'sum'),
+        
+        # Total download and upload data per user for each application
+        total_social_media_dl=('Social Media DL (Bytes)', 'sum'),
+        total_social_media_ul=('Social Media UL (Bytes)', 'sum'),
+        
+        total_google_dl=('Google DL (Bytes)', 'sum'),
+        total_google_ul=('Google UL (Bytes)', 'sum'),
+        
+        total_email_dl=('Email DL (Bytes)', 'sum'),
+        total_email_ul=('Email UL (Bytes)', 'sum'),
+        
+        total_youtube_dl=('Youtube DL (Bytes)', 'sum'),
+        total_youtube_ul=('Youtube UL (Bytes)', 'sum'),
+        
+        total_netflix_dl=('Netflix DL (Bytes)', 'sum'),
+        total_netflix_ul=('Netflix UL (Bytes)', 'sum'),
+        
+        total_gaming_dl=('Gaming DL (Bytes)', 'sum'),
+        total_gaming_ul=('Gaming UL (Bytes)', 'sum'),
+        
+        total_other_dl=('Other DL (Bytes)', 'sum'),
+        total_other_ul=('Other UL (Bytes)', 'sum'),
+        
+        # Total download and upload data overall
+        total_dl=('Total DL (Bytes)', 'sum'),
+        total_ul=('Total UL (Bytes)', 'sum')
+    ).reset_index()
+
+    # Calculate total data volume for each user (total DL + UL)
+    grouped['total_data_volume'] = grouped['total_dl'] + grouped['total_ul']
+
+    return grouped
+
+
+
+
