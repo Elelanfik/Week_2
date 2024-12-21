@@ -161,12 +161,55 @@ def segment_users_by_decile(data_tel):
     top_deciles = user_data[user_data['Decile'] > 5]
     
     # Calculate total data per decile (DL + UL)
-    top_deciles['Total Data'] = top_deciles['Total DL (Bytes)'] + top_deciles['Total UL (Bytes)']
+    top_deciles.loc[:, 'Total Data'] = top_deciles['Total DL (Bytes)'] + top_deciles['Total UL (Bytes)']
+
     
     # Group by decile and calculate total data for each decile
     decile_data = top_deciles.groupby('Decile')['Total Data'].sum().reset_index()
     
     return decile_data
+
+def calculate_basic_metrics(data):
+    
+    # Identify numeric columns
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    
+    # Initialize an empty dictionary to store the metrics
+    metrics = {}
+    
+    # Calculate metrics for each numeric column
+    for col in numeric_columns:
+        metrics[col] = {
+            'mean': data[col].mean(),
+            'median': data[col].median(),
+            'std': data[col].std(),
+            'min': data[col].min(),
+            'max': data[col].max(),
+            'range': data[col].max() - data[col].min(),
+            'skewness': data[col].skew(),
+            '25th_percentile': data[col].quantile(0.25),
+            '75th_percentile': data[col].quantile(0.75)
+        }
+    
+    # Convert the metrics dictionary to a DataFrame for better presentation
+    metrics_df = pd.DataFrame(metrics).T
+    return metrics_df
+
+def analyze_opportunities(data_tel):
+    opportunities = {}
+    
+    # Segment the data by deciles
+    decile_data = segment_users_by_decile(data_tel)
+    
+    # Example opportunity: High data usage segments (top 3 deciles)
+    high_usage_segment = decile_data.iloc[-3:]  # Get the top 3 deciles (high data usage)
+    opportunities['High Usage Segment'] = high_usage_segment
+    
+    # Example opportunity: Low data usage segment (bottom 3 deciles)
+    low_usage_segment = decile_data.iloc[:3]  # Get the bottom 3 deciles (low data usage)
+    opportunities['Low Usage Segment'] = low_usage_segment
+    
+    return opportunities
 
 
 
