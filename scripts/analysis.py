@@ -1,6 +1,10 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.decomposition import PCA
+from sklearn.pipeline import Pipeline
 
 def top_10_handsets(data, column='Handset Type'):
     # Check if the column exists
@@ -143,7 +147,35 @@ def aggregate_user_behavior(df):
     # Calculate total data volume for each user (total DL + UL)
     grouped['total_data_volume'] = grouped['total_dl'] + grouped['total_ul']
 
+    # Task 1.1: Aggregated user behavior overview for each application
+    apps = [
+        'social_media', 'google', 'email', 'youtube', 'netflix', 'gaming', 'other'
+    ]
+
+    for app in apps:
+        grouped[f'{app}_total_dl_ul'] = grouped[f'total_{app}_dl'] + grouped[f'total_{app}_ul']
+
+    # Plot bar chart for total data volume per user for each application
+    apps_dl_ul = [
+        'social_media_total_dl_ul', 'google_total_dl_ul', 'email_total_dl_ul', 
+        'youtube_total_dl_ul', 'netflix_total_dl_ul', 'gaming_total_dl_ul', 'other_total_dl_ul'
+    ]
+
+    grouped_apps_dl_ul = grouped[apps_dl_ul].sum()
+    grouped_apps_dl_ul.plot(kind='bar', figsize=(10, 6), color='skyblue')
+    plt.title("Total Download and Upload Data Volume per Application")
+    plt.ylabel("Data Volume (Bytes)")
+    plt.xticks(rotation=45)
+    plt.show()
+
+    # Pie chart for distribution of total data volume across applications
+    grouped_apps_dl_ul.plot(kind='pie', figsize=(8, 8), autopct='%1.1f%%', startangle=90)
+    plt.title("Data Volume Distribution per Application")
+    plt.ylabel("")  # Hide the y-label
+    plt.show()
+
     return grouped
+
 
 
 def segment_users_by_decile(data_tel):
@@ -286,6 +318,44 @@ def compute_dispersion(data, column):
         'Interquartile Range (IQR)': iqr,
         'Range': data_range
     }
+
+
+def preprocess_data(df, numerical_cols, categorical_cols):
+    numerical_cols = df.select_dtypes(include=['number']).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), numerical_cols),
+            ('cat', OneHotEncoder(), categorical_cols)
+        ])
+    
+    return preprocessor
+
+# Step 3: Apply PCA to the Preprocessed Data
+def apply_pca(df, n_components=2):
+    # Drop rows with any missing values
+    df_cleaned = df.dropna()
+    
+    # Identify numerical and categorical columns
+    numerical_cols = df_cleaned.select_dtypes(include=['number']).columns.tolist()
+    categorical_cols = df_cleaned.select_dtypes(include=['object', 'category']).columns.tolist()
+    
+    # Preprocess the data
+    preprocessor = preprocess_data(df_cleaned, numerical_cols, categorical_cols)
+    
+    # Create a pipeline with the preprocessor and PCA
+    pca_pipeline = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('pca', PCA(n_components=n_components))
+    ])
+    
+    # Apply the pipeline to the data
+    pca_result = pca_pipeline.fit_transform(df_cleaned)
+    
+    return pca_result
+
+
+
 
 
 
