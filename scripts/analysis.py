@@ -146,5 +146,28 @@ def aggregate_user_behavior(df):
     return grouped
 
 
+def segment_users_by_decile(data_tel):
+    
+    # Calculate total duration per user (sum of 'Dur. (ms)' per user)
+    data_tel['Total Duration'] = data_tel.groupby('IMSI')['Dur. (ms)'].transform('sum')
+    
+    # Remove duplicates to keep only one row per user
+    user_data = data_tel[['IMSI', 'Total Duration', 'Total DL (Bytes)', 'Total UL (Bytes)']].drop_duplicates()
+    
+    # Create decile classes based on the total duration
+    user_data['Decile'] = pd.qcut(user_data['Total Duration'], 10, labels=False) + 1  # Decile ranges from 1 to 10
+    
+    # Get the top 5 deciles (i.e., 6th to 10th deciles)
+    top_deciles = user_data[user_data['Decile'] > 5]
+    
+    # Calculate total data per decile (DL + UL)
+    top_deciles['Total Data'] = top_deciles['Total DL (Bytes)'] + top_deciles['Total UL (Bytes)']
+    
+    # Group by decile and calculate total data for each decile
+    decile_data = top_deciles.groupby('Decile')['Total Data'].sum().reset_index()
+    
+    return decile_data
+
+
 
 
