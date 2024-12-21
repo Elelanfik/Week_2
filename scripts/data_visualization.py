@@ -156,6 +156,23 @@ def plot_correlation_matrix(data):
     plt.title("Correlation Matrix of Data Variables")
     plt.show()   
     return corr_matrix
-     
 
+def analyze_correlation(data, columns, title="Correlation Matrix"):
+    
+    # Select relevant columns
+    correlation_data = data[columns]
+    
+    # Compute the correlation matrix
+    correlation_matrix = correlation_data.corr()
+    
+    # Display the correlation matrix
+    print(correlation_matrix)
+    
+    # Heatmap visualization
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
+    plt.title(title)
+    plt.show()
+    
+    return correlation_matrix
 
