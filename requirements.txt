@@ -1,12 +1,10 @@
 # Data manipulation and analysis
 pandas
 numpy
-
 # Data visualization
 matplotlib
 seaborn
 plotly
-
 # Machine Learning
 scikit-learn
 
