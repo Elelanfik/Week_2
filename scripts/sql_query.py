@@ -1,17 +1,7 @@
 import psycopg2
-import pandas as pd
 
+# Function to return the SQL query
 def get_user_data_query():
-    # Establish the database connection with correct string values
-    connection = psycopg2.connect(
-        host="localhost",           # Host should be a string
-        port=5432,                  # Port is already a number (no need for quotes)
-        database="telecome_data",   # Database name should be a string
-        user="postgres",            # User should be a string
-        password="blessed"          # Password should be a string
-    )
-
-    # SQL query to aggregate data
     query = """
     SELECT 
         "MSISDN/Number" AS user_id,
