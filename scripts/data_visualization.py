@@ -29,7 +29,7 @@ def plot_column_frequency(data, column=None, top_n=10):
     plt.xlabel('Count')
     plt.ylabel(column)
     plt.show()
-    
+
 def plot_histograms(data, numerical_columns, columns_per_plot=9):
     
     # Filter the numerical columns
@@ -59,3 +59,120 @@ def plot_histograms(data, numerical_columns, columns_per_plot=9):
         
         plt.tight_layout()
         plt.show()
+
+def plot_graphical_analysis(data):
+    # Identify continuous columns
+    continuous_columns = data.select_dtypes(include=['number']).columns
+
+    # Set up the plot style
+    sns.set(style="whitegrid")
+    
+    # Plot histograms and boxplots side by side for continuous variables
+    for col in continuous_columns:
+        # Create a 1x2 grid for the plots
+        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+        
+        # Histogram plot on the first axis
+        sns.histplot(data[col], kde=True, bins=30, color='blue', edgecolor='black', ax=axes[0])
+        axes[0].set_title(f"Histogram of {col}")
+        axes[0].set_xlabel(col)
+        axes[0].set_ylabel("Frequency")
+        
+        # Boxplot on the second axis
+        sns.boxplot(x=data[col], color='green', ax=axes[1])
+        axes[1].set_title(f"Boxplot of {col}")
+        axes[1].set_xlabel(col)
+        
+        # Adjust layout to prevent overlap
+        plt.tight_layout()
+        plt.show()
+
+    # Violin plots for continuous variables (to see distribution across categories)
+    for col in continuous_columns:
+        plt.figure(figsize=(10, 6))
+        sns.violinplot(y=data[col], color='purple')
+        plt.title(f"Violin plot of {col}")
+        plt.xlabel(col)
+        plt.show()
+
+def bivariate_analysis(data_tel):
+    # Ensure data_tel has the necessary columns
+    if 'Total DL (Bytes)' not in data_tel or 'Total UL (Bytes)' not in data_tel:
+        raise ValueError("Dataset must contain 'Total DL (Bytes)' and 'Total UL (Bytes)' columns")
+    
+    # Calculate the total data (DL + UL)
+    data_tel['Total Data'] = data_tel['Total DL (Bytes)'] + data_tel['Total UL (Bytes)']
+    
+    # Identify categorical columns
+    categorical_columns = data_tel.select_dtypes(include=['object', 'category']).columns
+    
+    # Analyze categorical data
+    for col in categorical_columns:
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x=col, y='Total Data', data=data_tel, palette='viridis')
+        plt.title(f"Total Data Usage by {col}")
+        plt.xlabel(col)
+        plt.ylabel("Total Data (DL + UL)")
+        plt.xticks(rotation=45)
+        plt.show()
+
+        # Boxplot for categorical variables
+        plt.figure(figsize=(10, 6))
+        sns.boxplot(x=col, y='Total Data', data=data_tel, palette='Set2')
+        plt.title(f"Boxplot of Total Data Usage by {col}")
+        plt.xlabel(col)
+        plt.ylabel("Total Data (DL + UL)")
+        plt.xticks(rotation=45)
+        plt.show()
+
+    # Analyze continuous data
+    continuous_columns = data_tel.select_dtypes(include=['number']).columns
+    for col in continuous_columns:
+        if col not in ['Dur. (ms)', 'Total DL (Bytes)', 'Total UL (Bytes)']:
+            continue
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=data_tel[col], y=data_tel['Total Data'], palette="deep")
+        plt.title(f"Scatter Plot: {col} vs Total Data Usage")
+        plt.xlabel(col)
+        plt.ylabel("Total Data (DL + UL)")
+        plt.show()
+
+
+def plot_correlation_matrix(data):
+    # Define the columns for which we want to compute correlation
+    columns_of_interest = ['Social Media data', 'Google data', 'Email data', 
+                           'YouTube data', 'Netflix data', 'Gaming data', 'Other data']
+    
+    # Ensure that the specified columns exist in the dataset
+    data_subset = data[columns_of_interest]
+    
+    # Compute the correlation matrix
+    corr_matrix = data_subset.corr()
+
+    # Visualize the correlation matrix using a heatmap
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", 
+                linewidths=0.5, vmin=-1, vmax=1, cbar_kws={'shrink': 0.8})
+    plt.title("Correlation Matrix of Data Variables")
+    plt.show()   
+    return corr_matrix
+
+def analyze_correlation(data, columns, title="Correlation Matrix"):
+    
+    # Select relevant columns
+    correlation_data = data[columns]
+    
+    # Compute the correlation matrix
+    correlation_matrix = correlation_data.corr()
+    
+    # Display the correlation matrix
+    print(correlation_matrix)
+    
+    # Heatmap visualization
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
+    plt.title(title)
+    plt.show()
+    
+    return correlation_matrix
+

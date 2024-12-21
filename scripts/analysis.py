@@ -146,5 +146,151 @@ def aggregate_user_behavior(df):
     return grouped
 
 
+def segment_users_by_decile(data_tel):
+    
+    # Calculate total duration per user (sum of 'Dur. (ms)' per user)
+    data_tel['Total Duration'] = data_tel.groupby('IMSI')['Dur. (ms)'].transform('sum')
+    
+    # Remove duplicates to keep only one row per user
+    user_data = data_tel[['IMSI', 'Total Duration', 'Total DL (Bytes)', 'Total UL (Bytes)']].drop_duplicates()
+    
+    # Create decile classes based on the total duration
+    user_data['Decile'] = pd.qcut(user_data['Total Duration'], 10, labels=False) + 1  # Decile ranges from 1 to 10
+    
+    # Get the top 5 deciles (i.e., 6th to 10th deciles)
+    top_deciles = user_data[user_data['Decile'] > 5]
+    
+    # Calculate total data per decile (DL + UL)
+    top_deciles.loc[:, 'Total Data'] = top_deciles['Total DL (Bytes)'] + top_deciles['Total UL (Bytes)']
+
+    
+    # Group by decile and calculate total data for each decile
+    decile_data = top_deciles.groupby('Decile')['Total Data'].sum().reset_index()
+    
+    return decile_data
+
+def calculate_basic_metrics(data):
+    
+    # Identify numeric columns
+    numeric_columns = data.select_dtypes(include=['number']).columns
+    
+    # Initialize an empty dictionary to store the metrics
+    metrics = {}
+    
+    # Calculate metrics for each numeric column
+    for col in numeric_columns:
+        metrics[col] = {
+            'mean': data[col].mean(),
+            'median': data[col].median(),
+            'std': data[col].std(),
+            'min': data[col].min(),
+            'max': data[col].max(),
+            'range': data[col].max() - data[col].min(),
+            'skewness': data[col].skew(),
+            '25th_percentile': data[col].quantile(0.25),
+            '75th_percentile': data[col].quantile(0.75)
+        }
+    
+    # Convert the metrics dictionary to a DataFrame for better presentation
+    metrics_df = pd.DataFrame(metrics).T
+    return metrics_df
+
+def analyze_opportunities(data_tel):
+    opportunities = {}
+    
+    # Segment the data by deciles
+    decile_data = segment_users_by_decile(data_tel)
+    
+    # Example opportunity: High data usage segments (top 3 deciles)
+    high_usage_segment = decile_data.iloc[-3:]  # Get the top 3 deciles (high data usage)
+    opportunities['High Usage Segment'] = high_usage_segment
+    
+    # Example opportunity: Low data usage segment (bottom 3 deciles)
+    low_usage_segment = decile_data.iloc[:3]  # Get the bottom 3 deciles (low data usage)
+    opportunities['Low Usage Segment'] = low_usage_segment
+    
+    return opportunities
+def compute_dispersion(data, column):
+    
+    variance = data[column].var()
+    standard_deviation = data[column].std()
+    iqr = data[column].quantile(0.75) - data[column].quantile(0.25)
+    data_range = data[column].max() - data[column].min()
+    
+    return {
+        'Variance': variance,
+        'Standard Deviation': standard_deviation,
+        'Interquartile Range (IQR)': iqr,
+        'Range': data_range
+    }
+
+# Function to analyze the dispersion for all quantitative variables in the dataset
+def analyze_dispersion(data):
+    
+    # Select quantitative columns (numeric columns)
+    quantitative_columns = data.select_dtypes(include=['number']).columns
+
+    # Initialize a dictionary to store the results
+    dispersion_params = {}
+
+    # Loop through each quantitative column to compute the dispersion parameters
+    for col in quantitative_columns:
+        dispersion_params[col] = compute_dispersion(data, col)
+
+    # Convert the results into a DataFrame for easy interpretation
+    dispersion_df = pd.DataFrame(dispersion_params).T
+
+    return dispersion_df
+
+def compute_dispersion(data, column):
+    variance = data[column].var()
+    standard_deviation = data[column].std()
+    iqr = data[column].quantile(0.75) - data[column].quantile(0.25)
+    data_range = data[column].max() - data[column].min()
+    
+    return {
+        'Variance': variance,
+        'Standard Deviation': standard_deviation,
+        'Interquartile Range (IQR)': iqr,
+        'Range': data_range
+    }
+
+# Function to analyze the dispersion for all quantitative variables in the dataset
+def analyze_dispersion(data):
+  
+    # Select quantitative columns (numeric columns)
+    quantitative_columns = data.select_dtypes(include=['number']).columns
+
+    # Initialize a dictionary to store the results
+    dispersion_params = {}
+
+    # Loop through each quantitative column to compute the dispersion parameters
+    for col in quantitative_columns:
+        dispersion_params[col] = compute_dispersion(data, col)
+
+    # Convert the results into a DataFrame for easy interpretation
+    dispersion_df = pd.DataFrame(dispersion_params).T
+
+    return dispersion_df
+
+def compute_dispersion(data, column):
+   
+    variance = data[column].var()
+    standard_deviation = data[column].std()
+    iqr = data[column].quantile(0.75) - data[column].quantile(0.25)
+    data_range = data[column].max() - data[column].min()
+    
+    return {
+        'Variance': variance,
+        'Standard Deviation': standard_deviation,
+        'Interquartile Range (IQR)': iqr,
+        'Range': data_range
+    }
+
+
+
+
+
+
 
 
