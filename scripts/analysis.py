@@ -210,6 +210,86 @@ def analyze_opportunities(data_tel):
     opportunities['Low Usage Segment'] = low_usage_segment
     
     return opportunities
+def compute_dispersion(data, column):
+    
+    variance = data[column].var()
+    standard_deviation = data[column].std()
+    iqr = data[column].quantile(0.75) - data[column].quantile(0.25)
+    data_range = data[column].max() - data[column].min()
+    
+    return {
+        'Variance': variance,
+        'Standard Deviation': standard_deviation,
+        'Interquartile Range (IQR)': iqr,
+        'Range': data_range
+    }
+
+# Function to analyze the dispersion for all quantitative variables in the dataset
+def analyze_dispersion(data):
+    
+    # Select quantitative columns (numeric columns)
+    quantitative_columns = data.select_dtypes(include=['number']).columns
+
+    # Initialize a dictionary to store the results
+    dispersion_params = {}
+
+    # Loop through each quantitative column to compute the dispersion parameters
+    for col in quantitative_columns:
+        dispersion_params[col] = compute_dispersion(data, col)
+
+    # Convert the results into a DataFrame for easy interpretation
+    dispersion_df = pd.DataFrame(dispersion_params).T
+
+    return dispersion_df
+
+def compute_dispersion(data, column):
+    variance = data[column].var()
+    standard_deviation = data[column].std()
+    iqr = data[column].quantile(0.75) - data[column].quantile(0.25)
+    data_range = data[column].max() - data[column].min()
+    
+    return {
+        'Variance': variance,
+        'Standard Deviation': standard_deviation,
+        'Interquartile Range (IQR)': iqr,
+        'Range': data_range
+    }
+
+# Function to analyze the dispersion for all quantitative variables in the dataset
+def analyze_dispersion(data):
+  
+    # Select quantitative columns (numeric columns)
+    quantitative_columns = data.select_dtypes(include=['number']).columns
+
+    # Initialize a dictionary to store the results
+    dispersion_params = {}
+
+    # Loop through each quantitative column to compute the dispersion parameters
+    for col in quantitative_columns:
+        dispersion_params[col] = compute_dispersion(data, col)
+
+    # Convert the results into a DataFrame for easy interpretation
+    dispersion_df = pd.DataFrame(dispersion_params).T
+
+    return dispersion_df
+
+def compute_dispersion(data, column):
+   
+    variance = data[column].var()
+    standard_deviation = data[column].std()
+    iqr = data[column].quantile(0.75) - data[column].quantile(0.25)
+    data_range = data[column].max() - data[column].min()
+    
+    return {
+        'Variance': variance,
+        'Standard Deviation': standard_deviation,
+        'Interquartile Range (IQR)': iqr,
+        'Range': data_range
+    }
+
+
+
+
 
 
 
