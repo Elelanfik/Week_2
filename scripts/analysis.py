@@ -354,6 +354,45 @@ def apply_pca(df, n_components=2):
     
     return pca_result
 
+import pandas as pd
+
+def calculate_total_traffic(df):
+    """
+    Adds a 'Total Traffic (Bytes)' column to the DataFrame by summing
+    'Total UL (Bytes)' and 'Total DL (Bytes)'.
+    """
+    df['Total Traffic (Bytes)'] = df['Total UL (Bytes)'] + df['Total DL (Bytes)']
+    return df
+
+def aggregate_metrics(df):
+    """
+    Aggregates metrics per customer (MSISDN/Number) to calculate:
+    - Total session duration (Dur. (ms)).
+    - Total traffic (Total Traffic (Bytes)).
+    - Session frequency (count of sessions).
+    """
+    aggregated = df.groupby('MSISDN/Number').agg({
+        'Dur. (ms)': 'sum',
+        'Total Traffic (Bytes)': 'sum',
+        'MSISDN/Number': 'count'
+    }).rename(columns={
+        'MSISDN/Number': 'Session Frequency'
+    })
+    return aggregated
+
+def get_top_10_by_metric(aggregated_df, metric):
+    """
+    Sorts the aggregated DataFrame by the specified metric and returns the top 10 customers.
+    """
+    return aggregated_df.sort_values(metric, ascending=False).head(10)
+
+def print_top_customers(top_customers, metric_name):
+    """
+    Prints the top 10 customers for a specific metric.
+    """
+    print(f"Top 10 Customers by {metric_name}:")
+    print(top_customers)
+    print("\n")
 
 
 
