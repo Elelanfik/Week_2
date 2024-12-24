@@ -568,3 +568,48 @@ class ExperienceAnalyzer:
             }
 
         return analysis_results
+
+
+class Experiencevisualizer:
+    def __init__(self, data):
+        # Initialize the class with the DataFrame
+        self.df = data
+
+    def plot_throughput_distribution_by_handset(self):
+        """
+        Analyzes and visualizes the distribution of average throughput per handset type.
+        """
+        # Group by handset type and calculate average throughput
+        throughput_per_handset = self.df.groupby('Handset Type')['Avg Bearer TP DL (kbps)'].mean()
+        print("\nAverage Throughput per Handset Type:")
+        print(throughput_per_handset)
+        
+        # Visualize distribution (bar plot)
+        plt.figure(figsize=(14, 8))
+        throughput_per_handset.plot(kind='barh', color='skyblue', edgecolor='blue')
+        plt.ylabel('Handset Type')
+        plt.xlabel('Average Throughput (kbps)')
+        plt.title('Average Throughput per Handset Type')
+        plt.tight_layout()
+        plt.show()
+
+    def plot_retransmission_distribution_by_handset(self):
+        """
+        Analyzes the average TCP retransmission per handset type.
+        """
+        # Group by handset type and calculate average retransmission
+        retransmission_per_handset = self.df.groupby('Handset Type')['TCP DL Retrans. Vol (Bytes)'].mean()
+        print("\nAverage TCP Retransmission per Handset Type:")
+        print(retransmission_per_handset)
+        
+        # Visualize distribution (bar plot)
+        plt.figure(figsize=(14, 8))
+        retransmission_per_handset.plot(kind='barh', color='salmon', edgecolor='blue')
+        plt.ylabel('Handset Type')
+        plt.xlabel('Average TCP Retransmission (Bytes)')
+        plt.title('Average TCP Retransmission per Handset Type')
+        plt.tight_layout()
+        plt.show()
+
+
+
