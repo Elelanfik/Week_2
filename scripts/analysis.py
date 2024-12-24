@@ -487,10 +487,84 @@ def remove_outliers(df, column_to_process, z_threshold=3):
     return df
 
 
+class ExperienceAnalyzer:
+    """
+    Analyzes user experience based on network parameters and handset type.
+    """
 
+    def __init__(self, df):
+        """
+        Initializes the analyzer with the input DataFrame.
 
+        Args:
+            df: pandas DataFrame with the required columns.
+        """
+        self.df = df.copy()
+        self.user_agg = None
+        self.experience_cluster_centers_ = None
 
+    def _fill_missing_values(self):
+        """
+        Fills missing values in the DataFrame using mean for numerical columns
+        and mode for categorical columns.
+        """
+        fill_values = {
+            'TCP DL Retrans. Vol (Bytes)': self.df['TCP DL Retrans. Vol (Bytes)'].mean(),
+            'Avg RTT DL (ms)': self.df['Avg RTT DL (ms)'].mean(),
+            'Avg Bearer TP DL (kbps)': self.df['Avg Bearer TP DL (kbps)'].mean(),
+            'Handset Type': self.df['Handset Type'].mode()[0]
+        }
+        self.df.fillna(fill_values, inplace=True)
 
+    def aggregate_user_data(self):
+        """
+        Aggregates network parameters and handset type per customer.
+        """
+        # Fill missing values
+        self._fill_missing_values()
 
+        # Aggregate data per customer
+        self.user_agg = (
+            self.df.groupby('MSISDN/Number')
+            .agg({
+                'TCP DL Retrans. Vol (Bytes)': 'mean',
+                'Avg RTT DL (ms)': 'mean',
+                'Handset Type': 'first',
+                'Avg Bearer TP DL (kbps)': 'mean'
+            })
+            .reset_index()
+        )
 
+    def analyze_columns(self, columns_to_analyze, top_n=10):
+        """
+        Analyzes specified columns for top, bottom, and most frequent values.
 
+        Args:
+            columns_to_analyze: List of columns to analyze.
+            top_n: Number of values to extract for each metric.
+
+        Returns:
+            Dictionary containing analysis results for each column.
+        """
+        if self.user_agg is None:
+            raise ValueError("Data has not been aggregated. Call aggregate_user_data first.")
+
+        def get_top_bottom_frequent(data, column, top_n):
+            top_values = data[column].nlargest(top_n)
+            bottom_values = data[column].nsmallest(top_n)
+            frequent_values = data[column].value_counts().head(top_n)
+            return top_values, bottom_values, frequent_values
+
+        # Dictionary to store the results
+        analysis_results = {}
+
+        # Analyze each column
+        for column in columns_to_analyze:
+            top_values, bottom_values, frequent_values = get_top_bottom_frequent(self.user_agg, column, top_n)
+            analysis_results[column] = {
+                'Top 10': top_values,
+                'Bottom 10': bottom_values,
+                'Most Frequent 10': frequent_values
+            }
+
+        return analysis_results
