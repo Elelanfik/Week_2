@@ -176,3 +176,80 @@ def analyze_correlation(data, columns, title="Correlation Matrix"):
     
     return correlation_matrix
 
+def plot_top_customers(top_customers, metric_name, ylabel, save_path=None):
+    """
+    Plots the top 10 customers for a specific metric with better formatting.
+    
+    Parameters:
+        top_customers (DataFrame): DataFrame containing the top 10 customers.
+        metric_name (str): Name of the metric for the plot title.
+        ylabel (str): Label for the y-axis.
+        save_path (str): Path to save the plot as an image. If None, the plot is not saved.
+    """
+    # Reset index for plotting
+    top_customers = top_customers.reset_index()
+    
+    # Shorten the MSISDN/Number to "Customer 1", "Customer 2", etc.
+    top_customers['Customer Label'] = [f"Customer {i+1}" for i in range(len(top_customers))]
+    
+    # Convert large y-axis values to a readable format
+    y_values = top_customers[top_customers.columns[1]]
+    if y_values.max() > 1e6:
+        y_values = y_values / 1e6
+        ylabel += " (in millions)"
+    elif y_values.max() > 1e3:
+        y_values = y_values / 1e3
+        ylabel += " (in thousands)"
+    
+    plt.figure(figsize=(10, 6))
+    plt.bar(top_customers['Customer Label'], y_values, color='skyblue')
+    plt.title(f"Top 10 Customers by {metric_name}", fontsize=16)
+    plt.xlabel("Customer", fontsize=12)
+    plt.ylabel(ylabel, fontsize=12)
+    plt.xticks(rotation=45, ha='right', fontsize=10)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path)
+        print(f"Plot saved at {save_path}")
+    else:
+        plt.show()
+        
+def plot_throughput_distribution_by_handset(self):
+    """
+    Analyzes and visualizes the distribution of average throughput per handset type.
+    """
+    # Group by handset type and calculate average throughput
+    throughput_per_handset = self.df.groupby('Handset Type')['Avg Bearer TP DL (kbps)'].mean()
+
+    print("\nAverage Throughput per Handset Type:")
+    print(throughput_per_handset)
+
+    # Visualize distribution (bar plot with handset type on y-axis)
+    plt.figure(figsize=(10, 6))
+    throughput_per_handset.plot(kind='barh', color='skyblue', edgecolor='black')
+    plt.ylabel('Handset Type')
+    plt.xlabel('Average Throughput (kbps)')
+    plt.title('Average Throughput per Handset Type')
+    plt.tight_layout()
+    plt.show()
+
+def plot_retransmission_distribution_by_handset(self):
+    """
+    Analyzes and visualizes the average TCP retransmission per handset type.
+    """
+    # Group by handset type and calculate average TCP retransmissions
+    retransmission_per_handset = self.df.groupby('Handset Type')['TCP DL Retrans. Vol (Bytes)'].mean()
+
+    print("\nAverage TCP Retransmission per Handset Type:")
+    print(retransmission_per_handset)
+
+    # Visualize distribution (bar plot with handset type on y-axis)
+    plt.figure(figsize=(10, 6))
+    retransmission_per_handset.plot(kind='barh', color='salmon', edgecolor='black')
+    plt.ylabel('Handset Type')
+    plt.xlabel('Average TCP Retransmission (Bytes)')
+    plt.title('Average TCP Retransmission per Handset Type')
+    plt.tight_layout()
+    plt.show()
+

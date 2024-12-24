@@ -354,13 +354,262 @@ def apply_pca(df, n_components=2):
     
     return pca_result
 
+import pandas as pd
+
+def calculate_total_traffic(df):
+    """
+    Adds a 'Total Traffic (Bytes)' column to the DataFrame by summing
+    'Total UL (Bytes)' and 'Total DL (Bytes)'.
+    """
+    df['Total Traffic (Bytes)'] = df['Total UL (Bytes)'] + df['Total DL (Bytes)']
+    return df
+
+def aggregate_metrics(df):
+    """
+    Aggregates metrics per customer (MSISDN/Number) to calculate:
+    - Total session duration (Dur. (ms)).
+    - Total traffic (Total Traffic (Bytes)).
+    - Session frequency (count of sessions).
+    """
+    aggregated = df.groupby('MSISDN/Number').agg({
+        'Dur. (ms)': 'sum',
+        'Total Traffic (Bytes)': 'sum',
+        'MSISDN/Number': 'count'
+    }).rename(columns={
+        'MSISDN/Number': 'Session Frequency'
+    })
+    return aggregated
+
+def get_top_10_by_metric(aggregated_df, metric):
+    """
+    Sorts the aggregated DataFrame by the specified metric and returns the top 10 customers.
+    """
+    return aggregated_df.sort_values(metric, ascending=False).head(10)
+
+def print_top_customers(top_customers, metric_name):
+    """
+    Prints the top 10 customers for a specific metric.
+    """
+    print(f"Top 10 Customers by {metric_name}:")
+    print(top_customers)
+    print("\n")
+import pandas as pd
+import numpy as np
+import scipy.stats 
+from scipy.stats import zscore
+
+def missing_values_table(df):
+    # Total missing values
+    mis_val = df.isnull().sum()
+
+    # Percentage of missing values
+    mis_val_percent = 100 * df.isnull().sum() / len(df)
+
+    # dtype of missing values
+    mis_val_dtype = df.dtypes
+
+    # Make a table with the results
+    mis_val_table = pd.concat([mis_val, mis_val_percent, mis_val_dtype], axis=1)
+
+    # Rename the columns
+    mis_val_table_ren_columns = mis_val_table.rename(
+    columns={0: 'Missing Values', 1: '% of Total Values', 2: 'Dtype'})
+
+    # Sort the table by percentage of missing descending
+    mis_val_table_ren_columns = mis_val_table_ren_columns[
+        mis_val_table_ren_columns.iloc[:, 1] != 0].sort_values(
+        '% of Total Values', ascending=False).round(1)
+
+    # Print some summary information
+    print("Your selected dataframe has " + str(df.shape[1]) + " columns.\n"
+          "There are " + str(mis_val_table_ren_columns.shape[0]) +
+          " columns that have missing values.")
+
+    # Return the dataframe with missing information
+    return mis_val_table_ren_columns
+
+
+# Define a function to convert milliseconds to seconds and drop the original ms columns
+def apply_ms_to_sec_and_drop(columns, df):
+    for col in columns:
+        new_col = col.replace('ms', 'sec')
+        df[new_col] = df[col].apply(ms_to_sec)  # Convert ms to sec
+        df.drop(col, axis=1, inplace=True)  # Drop the original ms column
+    return df
+
+def ms_to_sec(ms):
+    return ms / 1000.0
+
+
+def convert_bytes_to_megabytes(df, bytes_data):
+    megabyte = 1 * 10e+5
+    df[bytes_data] = df[bytes_data] / megabyte
+    return df[bytes_data]
+
+# Define a function to convert bytes to megabytes for multiple columns
+def convert_columns_to_mb(columns, df):
+    for col in columns:
+        new_col = col.replace('Bytes', 'MB')
+        df[new_col] = convert_bytes_to_megabytes(df, col)
+        df.drop(col, axis=1, inplace=True)  # Drop the original ms column
+    return df
+
+def handeling_missing_data(data):
+    missing_data = data.isnull().sum().sort_values(ascending=False)
+    missing_percentage = (missing_data / len(data)) * 100
+    data_cleaned = data.drop(columns=missing_data[missing_percentage > 90].index)
+
+    # Step 3: Impute missing values in numeric columns using the mean
+    numeric_cols = data_cleaned.select_dtypes(include=['float64', 'int64']).columns
+    data_cleaned[numeric_cols] = data_cleaned[numeric_cols].fillna(0)
+
+    # Step 4: Impute missing values in categorical columns using 'unknown'
+    categorical_cols = data_cleaned.select_dtypes(include=['object']).columns
+    data_cleaned[categorical_cols] = data_cleaned[categorical_cols].fillna('unknown')
+    return data_cleaned
 
 
 
+def fix_outlier(df, column):
+    df[column] = np.where(df[column] > df[column].quantile(0.95), df[column].median(), df[column])
+    return df[column]
+
+def remove_outliers(df, column_to_process, z_threshold=3):
+    # Apply outlier removal to the specified column
+    z_scores = zscore(df[column_to_process])
+    outlier_column = column_to_process + '_Outlier'
+    df[outlier_column] = (np.abs(z_scores) > z_threshold).astype(int)
+    df = df[df[outlier_column] == 0]  # Keep rows without outliers
+
+    # Drop the outlier column as it's no longer needed
+    df = df.drop(columns=[outlier_column], errors='ignore')
+
+    return df
 
 
+class ExperienceAnalyzer:
+    """
+    Analyzes user experience based on network parameters and handset type.
+    """
+
+    def __init__(self, df):
+        """
+        Initializes the analyzer with the input DataFrame.
+
+        Args:
+            df: pandas DataFrame with the required columns.
+        """
+        self.df = df.copy()
+        self.user_agg = None
+        self.experience_cluster_centers_ = None
+
+    def _fill_missing_values(self):
+        """
+        Fills missing values in the DataFrame using mean for numerical columns
+        and mode for categorical columns.
+        """
+        fill_values = {
+            'TCP DL Retrans. Vol (Bytes)': self.df['TCP DL Retrans. Vol (Bytes)'].mean(),
+            'Avg RTT DL (ms)': self.df['Avg RTT DL (ms)'].mean(),
+            'Avg Bearer TP DL (kbps)': self.df['Avg Bearer TP DL (kbps)'].mean(),
+            'Handset Type': self.df['Handset Type'].mode()[0]
+        }
+        self.df.fillna(fill_values, inplace=True)
+
+    def aggregate_user_data(self):
+        """
+        Aggregates network parameters and handset type per customer.
+        """
+        # Fill missing values
+        self._fill_missing_values()
+
+        # Aggregate data per customer
+        self.user_agg = (
+            self.df.groupby('MSISDN/Number')
+            .agg({
+                'TCP DL Retrans. Vol (Bytes)': 'mean',
+                'Avg RTT DL (ms)': 'mean',
+                'Handset Type': 'first',
+                'Avg Bearer TP DL (kbps)': 'mean'
+            })
+            .reset_index()
+        )
+
+    def analyze_columns(self, columns_to_analyze, top_n=10):
+        """
+        Analyzes specified columns for top, bottom, and most frequent values.
+
+        Args:
+            columns_to_analyze: List of columns to analyze.
+            top_n: Number of values to extract for each metric.
+
+        Returns:
+            Dictionary containing analysis results for each column.
+        """
+        if self.user_agg is None:
+            raise ValueError("Data has not been aggregated. Call aggregate_user_data first.")
+
+        def get_top_bottom_frequent(data, column, top_n):
+            top_values = data[column].nlargest(top_n)
+            bottom_values = data[column].nsmallest(top_n)
+            frequent_values = data[column].value_counts().head(top_n)
+            return top_values, bottom_values, frequent_values
+
+        # Dictionary to store the results
+        analysis_results = {}
+
+        # Analyze each column
+        for column in columns_to_analyze:
+            top_values, bottom_values, frequent_values = get_top_bottom_frequent(self.user_agg, column, top_n)
+            analysis_results[column] = {
+                'Top 10': top_values,
+                'Bottom 10': bottom_values,
+                'Most Frequent 10': frequent_values
+            }
+
+        return analysis_results
 
 
+class Experiencevisualizer:
+    def __init__(self, data):
+        # Initialize the class with the DataFrame
+        self.df = data
+
+    def plot_throughput_distribution_by_handset(self):
+        """
+        Analyzes and visualizes the distribution of average throughput per handset type.
+        """
+        # Group by handset type and calculate average throughput
+        throughput_per_handset = self.df.groupby('Handset Type')['Avg Bearer TP DL (kbps)'].mean()
+        print("\nAverage Throughput per Handset Type:")
+        print(throughput_per_handset)
+        
+        # Visualize distribution (bar plot)
+        plt.figure(figsize=(14, 8))
+        throughput_per_handset.plot(kind='barh', color='skyblue', edgecolor='blue')
+        plt.ylabel('Handset Type')
+        plt.xlabel('Average Throughput (kbps)')
+        plt.title('Average Throughput per Handset Type')
+        plt.tight_layout()
+        plt.show()
+
+    def plot_retransmission_distribution_by_handset(self):
+        """
+        Analyzes the average TCP retransmission per handset type.
+        """
+        # Group by handset type and calculate average retransmission
+        retransmission_per_handset = self.df.groupby('Handset Type')['TCP DL Retrans. Vol (Bytes)'].mean()
+        print("\nAverage TCP Retransmission per Handset Type:")
+        print(retransmission_per_handset)
+        
+        # Visualize distribution (bar plot)
+        plt.figure(figsize=(14, 8))
+        retransmission_per_handset.plot(kind='barh', color='salmon', edgecolor='blue')
+        plt.ylabel('Handset Type')
+        plt.xlabel('Average TCP Retransmission (Bytes)')
+        plt.title('Average TCP Retransmission per Handset Type')
+        plt.tight_layout()
+        plt.show()
 
 
 
