@@ -25,3 +25,25 @@ def get_user_data_query():
         user_id;
     """
     return query
+
+def load_data_from_postgres(query):
+    try:
+        # Define your PostgreSQL connection parameters
+        connection = psycopg2.connect(
+            host="db",  # Replace with your host
+            port=5432,  # Ensure this is an integer, not a string
+            database="xdr_data",  # Replace with your database name
+            user="postgres",  # Replace with your PostgreSQL username
+            password="1234"  # Replace with your password
+        )
+        
+        # Load data into a pandas DataFrame
+        df = pd.read_sql(query, connection)
+        
+        # Close the connection
+        connection.close()
+        
+        return df
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None

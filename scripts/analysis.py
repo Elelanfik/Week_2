@@ -5,6 +5,14 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.ensemble import RandomForestRegressor
+import psycopg2 
+import numpy as np
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+
 
 def top_10_handsets(data, column='Handset Type'):
     # Check if the column exists
@@ -612,4 +620,406 @@ class Experiencevisualizer:
         plt.show()
 
 
+# Define functions to modularize the code
+
+def standardize_features(data, features):
+    """
+    Standardizes the features for clustering.
+
+    Args:
+        data (DataFrame): Input dataset.
+        features (list): List of feature column names to standardize.
+
+    Returns:
+        ndarray: Standardized feature matrix.
+        StandardScaler: Fitted scaler for inverse transformation.
+    """
+    scaler = StandardScaler()
+    transformed_data = scaler.fit_transform(data[features])
+    return transformed_data, scaler
+
+
+def apply_kmeans(data, transformed_data, n_clusters=3, random_state=42):
+    """
+    Applies K-means clustering to the data.
+
+    Args:
+        data (DataFrame): Input dataset.
+        transformed_data (ndarray): Standardized feature matrix.
+        n_clusters (int): Number of clusters.
+        random_state (int): Random state for reproducibility.
+
+    Returns:
+        DataFrame: Dataset with added cluster labels.
+        KMeans: Fitted KMeans model.
+    """
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
+    data['Cluster'] = kmeans.fit_predict(transformed_data)
+    return data, kmeans
+
+
+def analyze_clusters(kmeans, scaler, features):
+    """
+    Analyzes the cluster centers.
+
+    Args:
+        kmeans (KMeans): Fitted KMeans model.
+        scaler (StandardScaler): Fitted scaler for inverse transformation.
+        features (list): List of feature column names.
+
+    Returns:
+        DataFrame: Cluster centers in original feature space.
+    """
+    cluster_centers = scaler.inverse_transform(kmeans.cluster_centers_)
+    return pd.DataFrame(cluster_centers, columns=features)
+
+
+def map_clusters(data, cluster_mapping):
+    """
+    Maps cluster numbers to descriptive labels.
+
+    Args:
+        data (DataFrame): Dataset with cluster labels.
+        cluster_mapping (dict): Mapping of cluster numbers to descriptive labels.
+
+    Returns:
+        DataFrame: Dataset with added descriptive cluster labels.
+    """
+    data['ClusterNo'] = data['Cluster'].map(cluster_mapping)
+    return data
+
+
+def plot_clusters(data, x_feature, y_feature, cluster_mapping, colors):
+    """
+    Plots the clusters in a scatter plot.
+
+    Args:
+        data (DataFrame): Dataset with cluster labels.
+        x_feature (str): Feature name for x-axis.
+        y_feature (str): Feature name for y-axis.
+        cluster_mapping (dict): Mapping of cluster numbers to descriptive labels.
+        colors (list): List of colors for clusters.
+    """
+    plt.figure(figsize=(8, 6))
+    for cluster_id in data['Cluster'].unique():
+        cluster_data = data[data['Cluster'] == cluster_id]
+        plt.scatter(cluster_data[x_feature], cluster_data[y_feature],
+                    c=colors[cluster_id], label=cluster_mapping[cluster_id], s=100, alpha=0.7)
+    plt.title('User Clusters Based on Experience Metrics')
+    plt.xlabel(x_feature)
+    plt.ylabel(y_feature)
+    plt.legend(title="Cluster")
+    plt.show()
+
+
+
+class SatisfactionAnalyzer:
+    """
+    Analyzes user satisfaction based on engagement and experience scores.
+    """
+    def cluster_satisfaction(self, n_clusters=2):
+        """
+        Performs K-Means clustering on satisfaction scores (Engagement and Experience Scores).
+
+        Args:
+            n_clusters: Number of clusters to form.
+        """
+        # Ensure that satisfaction scores are calculated before clustering
+        if 'Engagement_Score' not in self.user_agg or 'Experience_Score' not in self.user_agg:
+            raise ValueError("Satisfaction scores (Engagement_Score and Experience_Score) must be calculated before clustering.")
+
+        # K-Means clustering on satisfaction scores
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        self.user_agg['Satisfaction_Cluster'] = kmeans.fit_predict(
+            self.user_agg[['Engagement_Score', 'Experience_Score']]
+        )
+        print(f"Satisfaction clustering completed with {n_clusters} clusters.")
+
+    def cluster_satisfaction(self, n_clusters=2):
+        """
+        Performs K-Means clustering on satisfaction scores (Engagement and Experience Scores).
+
+        Args:
+            n_clusters: Number of clusters to form.
+        """
+        # Ensure that satisfaction scores are calculated before clustering
+        if 'Engagement_Score' not in self.user_agg or 'Experience_Score' not in self.user_agg:
+            raise ValueError("Satisfaction scores (Engagement_Score and Experience_Score) must be calculated before clustering.")
+
+        # K-Means clustering on satisfaction scores
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        self.user_agg['Satisfaction_Cluster'] = kmeans.fit_predict(
+            self.user_agg[['Engagement_Score', 'Experience_Score']]
+        )
+        print(f"Satisfaction clustering completed with {n_clusters} clusters.")    
+
+    def __init__(self, df):
+        """
+        Initializes the analyzer with the input DataFrame.
+
+        Args:
+            df: pandas DataFrame with the required columns.
+        """
+        self.df = df.copy()
+        self.engagement_centers_ = None
+        self.experience_centers_ = None
+
+    def preprocess_data(self):
+        """
+        Prepares and aggregates network parameters and handset type per customer,
+        handling missing values using mean/mode.
+        """
+        required_columns = [
+            'TCP DL Retrans. Vol (Bytes)', 'Avg RTT DL (ms)', 'Avg Bearer TP DL (kbps)',
+            'Handset Type', 'MSISDN/Number', 'Dur. (ms)', 'Total UL (Bytes)', 'Total DL (Bytes)'
+        ]
+
+        # Validate presence of required columns
+        for col in required_columns:
+            if col not in self.df.columns:
+                raise KeyError(f"Column '{col}' is missing from the DataFrame.")
+
+        # Calculate additional features
+        self.df['Session_Frequency'] = self.df.groupby('MSISDN/Number')['MSISDN/Number'].transform('count')
+        self.df['Total_Session_Duration'] = self.df.groupby('MSISDN/Number')['Dur. (ms)'].transform('sum')
+        self.df['Total_Traffic'] = self.df['Total UL (Bytes)'] + self.df['Total DL (Bytes)']
+
+        fill_values = {
+            'TCP DL Retrans. Vol (Bytes)': self.df['TCP DL Retrans. Vol (Bytes)'].mean(),
+            'Avg RTT DL (ms)': self.df['Avg RTT DL (ms)'].mean(),
+            'Avg Bearer TP DL (kbps)': self.df['Avg Bearer TP DL (kbps)'].mean(),
+            'Handset Type': self.df['Handset Type'].mode()[0]
+        }
+        self.df.fillna(fill_values, inplace=True)
+
+        self.user_agg = self.df.groupby('MSISDN/Number').agg({
+            'TCP DL Retrans. Vol (Bytes)': 'mean',
+            'Avg RTT DL (ms)': 'mean',
+            'Handset Type': 'first',
+            'Avg Bearer TP DL (kbps)': 'mean',
+            'Session_Frequency': 'first',
+            'Total_Session_Duration': 'first',
+            'Total_Traffic': 'first'
+        }).reset_index()
+
+    def get_top_satisfied_customers(self, n=10):
+        """
+        Finds the top n most satisfied customers and generates a bar plot of their satisfaction scores.
+
+        Args:
+            n: Number of top satisfied customers to return.
+        """
+        top_customers = self.user_agg.nlargest(n, 'Satisfaction_Score')
+        
+        print(f"\nTop {n} Most Satisfied Customers:")
+        print(top_customers[['MSISDN/Number', 'Satisfaction_Score']])
+        
+        # Plotting bar chart
+        plt.figure(figsize=(10, 6))
+        plt.bar(top_customers['MSISDN/Number'].astype(str), top_customers['Satisfaction_Score'], color='skyblue')
+        plt.xlabel('MSISDN/Number')
+        plt.ylabel('Satisfaction Score')
+        plt.title(f'Top {n} Most Satisfied Customers')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()  # To prevent overlap of labels
+        plt.show()   
+
+    def cluster_engagement(self, n_clusters=3):
+        """
+        Clusters user engagement using K-Means.
+
+        Args:
+            n_clusters: Number of clusters.
+        """
+        scaler = StandardScaler()
+        normalized_engagement = scaler.fit_transform(self.user_agg[['Session_Frequency', 
+                                                                     'Total_Session_Duration', 
+                                                                     'Total_Traffic']])
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        self.user_agg['Engagement_Cluster'] = kmeans.fit_predict(normalized_engagement)
+        self.engagement_centers_ = kmeans.cluster_centers_
+
+    def cluster_experience(self, n_clusters=3):
+        """
+        Clusters user experience using K-Means.
+
+        Args:
+            n_clusters: Number of clusters.
+        """
+        scaler = StandardScaler()
+        normalized_experience = scaler.fit_transform(self.user_agg[['TCP DL Retrans. Vol (Bytes)',
+                                                                     'Avg RTT DL (ms)',
+                                                                     'Avg Bearer TP DL (kbps)']])
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        self.user_agg['Experience_Cluster'] = kmeans.fit_predict(normalized_experience)
+        self.experience_centers_ = kmeans.cluster_centers_
+
+    def compute_engagement_score(self):
+        """
+        Calculates engagement scores based on distances to the least engaged cluster.
+        """
+        if self.engagement_centers_ is None:
+            raise ValueError("Cluster engagement first using `cluster_engagement`.")
+
+        least_engaged_center = self.engagement_centers_[0]
+        scaler = StandardScaler()
+        normalized_engagement = scaler.fit_transform(self.user_agg[['Session_Frequency', 
+                                                                     'Total_Session_Duration', 
+                                                                     'Total_Traffic']])
+        self.user_agg['Engagement_Score'] = euclidean_distances(normalized_engagement, 
+                                                                least_engaged_center.reshape(1, -1))[:, 0]
+
+    def compute_experience_score(self):
+        """
+        Calculates experience scores based on distances to the worst experience cluster.
+        """
+        if self.experience_centers_ is None:
+            raise ValueError("Cluster experience first using `cluster_experience`.")
+
+        worst_experience_center = self.experience_centers_[-1]
+        scaler = StandardScaler()
+        normalized_experience = scaler.fit_transform(self.user_agg[['TCP DL Retrans. Vol (Bytes)', 
+                                                                     'Avg RTT DL (ms)', 
+                                                                     'Avg Bearer TP DL (kbps)']])
+        self.user_agg['Experience_Score'] = euclidean_distances(normalized_experience, 
+                                                                worst_experience_center.reshape(1, -1))[:, 0]
+
+    def compute_satisfaction_score(self):
+        """
+        Calculates satisfaction scores as the average of engagement and experience scores.
+        """
+        self.user_agg['Satisfaction_Score'] = (self.user_agg['Engagement_Score'] + 
+                                               self.user_agg['Experience_Score']) / 2
+
+    def predict_satisfaction_with_rf(self):
+        """
+        Predicts satisfaction scores using Random Forest Regression.
+        """
+        X = self.user_agg[['Session_Frequency', 'Total_Session_Duration', 
+                        'Total_Traffic', 'TCP DL Retrans. Vol (Bytes)', 
+                        'Avg RTT DL (ms)', 'Avg Bearer TP DL (kbps)']]
+        y = self.user_agg['Satisfaction_Score']
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        # Initialize Random Forest Regressor
+        rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf_model.fit(X_train, y_train)
+
+        # Make predictions
+        y_pred = rf_model.predict(X_test)
+
+        # Calculate RMSE
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+        print("Random Forest Regression RMSE:", rmse)
+
+        # Calculate R² score
+        r2 = r2_score(y_test, y_pred)
+        print("R² Score:", r2)
+
+        # Plot predicted vs true values
+        plt.figure(figsize=(8, 6))
+        plt.scatter(y_test, y_pred, color='blue', alpha=0.6)
+        plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], color='red', lw=2)  # Diagonal line
+        plt.title("Predicted vs True Satisfaction Scores")
+        plt.xlabel("True Satisfaction Score")
+        plt.ylabel("Predicted Satisfaction Score")
+        plt.show()
+
+    def analyze_satisfaction_clusters(self, n_clusters=2):
+        """
+        Analyzes satisfaction clusters using K-Means clustering and visualizes the results.
+        """
+        # Extract the relevant features for clustering
+        X = self.user_agg[['Session_Frequency', 'Total_Session_Duration', 
+                        'Total_Traffic', 'TCP DL Retrans. Vol (Bytes)', 
+                        'Avg RTT DL (ms)', 'Avg Bearer TP DL (kbps)']]
+
+        # Apply KMeans clustering
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        self.user_agg['Cluster'] = kmeans.fit_predict(X)
+
+        # Getting the cluster centers
+        cluster_centers = kmeans.cluster_centers_
+
+        # Visualize the clusters using 'Session Frequency' and 'Total Session Duration'
+        plt.figure(figsize=(8, 6))
+        plt.scatter(self.user_agg['Session_Frequency'], self.user_agg['Total_Session_Duration'], 
+                    c=self.user_agg['Cluster'], cmap='coolwarm', marker='o')  # Using 'coolwarm' color map
+        plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], s=200, c='lime', label='Centroids', marker='X')
+        plt.title('K-Means Clustering on Session Frequency & Total Session Duration (k={})'.format(n_clusters))
+        plt.xlabel('Session Frequency')
+        plt.ylabel('Total Session Duration')
+        plt.legend()
+        plt.show()
+
+        # Optionally, display the first few rows of the cluster assignments
+        print(self.user_agg[['Session_Frequency', 'Total_Session_Duration', 'Cluster']].head())
+
+        # Optional: Add a bar plot showing the number of customers in each cluster
+        cluster_counts = self.user_agg['Cluster'].value_counts()
+        plt.figure(figsize=(6, 4))
+        cluster_counts.plot(kind='bar', color='skyblue')
+        plt.title('Number of Customers in Each Cluster')
+        plt.xlabel('Cluster')
+        plt.ylabel('Number of Customers')
+        plt.xticks(rotation=0)
+        plt.show()
+
+    def export_to_postgresql(self, host, user, password, database, table_name, port=5432):
+        """
+        Exports the final table to a PostgreSQL database.
+
+        Args:
+            host: PostgreSQL host address.
+            user: PostgreSQL username.
+            password: PostgreSQL password.
+            database: PostgreSQL database name.
+            table_name: Name of the table to create in the database.
+            port: PostgreSQL port number (default is 5432).
+        """
+        try:
+            # Connect to PostgreSQL
+            conn = psycopg2.connect(
+                host=host,
+                user=user,
+                password=password,
+                dbname=database,
+                port=port
+            )
+            cursor = conn.cursor()
+
+            # Create table in PostgreSQL (if it doesn't already exist)
+            create_table_query = f"""
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                MSISDN_Number VARCHAR(255),
+                Engagement_Score FLOAT,
+                Experience_Score FLOAT,
+                Satisfaction_Score FLOAT,
+                Cluster INT
+            )
+            """
+            cursor.execute(create_table_query)
+
+            # Insert data into PostgreSQL
+            for index, row in self.user_agg.iterrows():
+                msisdn = row['MSISDN/Number']  # Ensure this column name exists in your DataFrame
+                engagement_score = row['Engagement_Score']
+                experience_score = row['Experience_Score']
+                satisfaction_score = row['Satisfaction_Score']
+                cluster = row['Cluster']  # Ensure this column name matches
+
+                insert_query = f"""
+                INSERT INTO {table_name} (MSISDN_Number, Engagement_Score, Experience_Score, Satisfaction_Score, Cluster)
+                VALUES (%s, %s, %s, %s, %s)
+                """
+                cursor.execute(insert_query, (msisdn, engagement_score, experience_score, satisfaction_score, cluster))
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+            print(f"Data successfully exported to {table_name} table in {database} database.")
+
+        except psycopg2.Error as err:
+            print(f"Error: {err}")
 

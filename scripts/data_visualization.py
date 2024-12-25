@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 
 def plot_univariate(data, column, title=None):
@@ -214,42 +218,83 @@ def plot_top_customers(top_customers, metric_name, ylabel, save_path=None):
         print(f"Plot saved at {save_path}")
     else:
         plt.show()
-        
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
 def plot_throughput_distribution_by_handset(self):
     """
-    Analyzes and visualizes the distribution of average throughput per handset type.
+    Analyzes and visualizes the distribution of average throughput for the top 5 handset types.
     """
     # Group by handset type and calculate average throughput
     throughput_per_handset = self.df.groupby('Handset Type')['Avg Bearer TP DL (kbps)'].mean()
 
-    print("\nAverage Throughput per Handset Type:")
-    print(throughput_per_handset)
+    # Sort by throughput and select the top 5 handset types
+    throughput_sorted = throughput_per_handset.sort_values(ascending=False).head(5)
+    selected_handset_types = throughput_sorted.index.tolist()
 
-    # Visualize distribution (bar plot with handset type on y-axis)
-    plt.figure(figsize=(10, 6))
-    throughput_per_handset.plot(kind='barh', color='skyblue', edgecolor='black')
-    plt.ylabel('Handset Type')
+    print("\nSelected Handset Types for Throughput (Top 5 by Average Throughput):")
+    print(selected_handset_types)
+
+    # Filter the data for the selected handset types
+    filtered_data = self.df[self.df['Handset Type'].isin(selected_handset_types)]
+
+    # Plot histograms for each of the selected handset types
+    plt.figure(figsize=(12, 6))
+    for handset_type in selected_handset_types:
+        subset = filtered_data[filtered_data['Handset Type'] == handset_type]
+        sns.histplot(
+            subset['Avg Bearer TP DL (kbps)'], 
+            kde=True, 
+            label=handset_type, 
+            bins=20, 
+            alpha=0.6
+        )
+    
+    plt.title('Histogram of Average Throughput for Top 5 Handset Types')
     plt.xlabel('Average Throughput (kbps)')
-    plt.title('Average Throughput per Handset Type')
+    plt.ylabel('Frequency')
+    plt.legend(title='Handset Type', bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
     plt.show()
 
 def plot_retransmission_distribution_by_handset(self):
     """
-    Analyzes and visualizes the average TCP retransmission per handset type.
+    Analyzes and visualizes the distribution of average TCP retransmission for the top 5 handset types.
     """
-    # Group by handset type and calculate average TCP retransmissions
+    # Group by handset type and calculate average retransmissions
     retransmission_per_handset = self.df.groupby('Handset Type')['TCP DL Retrans. Vol (Bytes)'].mean()
 
-    print("\nAverage TCP Retransmission per Handset Type:")
-    print(retransmission_per_handset)
+    # Sort by retransmissions and select the top 5 handset types
+    retransmission_sorted = retransmission_per_handset.sort_values(ascending=False).head(5)
+    selected_handset_types = retransmission_sorted.index.tolist()
 
-    # Visualize distribution (bar plot with handset type on y-axis)
-    plt.figure(figsize=(10, 6))
-    retransmission_per_handset.plot(kind='barh', color='salmon', edgecolor='black')
-    plt.ylabel('Handset Type')
+    print("\nSelected Handset Types for Retransmissions (Top 5 by Average Retransmissions):")
+    print(selected_handset_types)
+
+    # Filter the data for the selected handset types
+    filtered_data = self.df[self.df['Handset Type'].isin(selected_handset_types)]
+
+    # Plot histograms for each of the selected handset types
+    plt.figure(figsize=(12, 6))
+    for handset_type in selected_handset_types:
+        subset = filtered_data[filtered_data['Handset Type'] == handset_type]
+        sns.histplot(
+            subset['TCP DL Retrans. Vol (Bytes)'], 
+            kde=True, 
+            label=handset_type, 
+            bins=20, 
+            alpha=0.6
+        )
+    
+    plt.title('Histogram of Average TCP Retransmissions for Top 5 Handset Types')
     plt.xlabel('Average TCP Retransmission (Bytes)')
-    plt.title('Average TCP Retransmission per Handset Type')
+    plt.ylabel('Frequency')
+    plt.legend(title='Handset Type', bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
     plt.show()
 
